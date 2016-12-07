@@ -149,3 +149,28 @@ libcamera_core.so -> _ZN7android9SingletonINS_13SensorManagerEE9sInstanceE
 libcamera_core.so -> _ZN7android13SensorManager16createEventQueueEv
                      android::SensorManager::createEventQueue()
 ```
+Let's add another shim library:
+```bash
+~ $ ./symdep --demangle --shim "libexif.so|libexif_shim.so:libgui.so|libgui_shim.so" cm13/out/target/product/hwp6s/system/lib/libcamera_core.so
+lib/libcamera_core.so
+    libbinder.so
+    libc.so
+    libcamera_client.so
+    libcutils.so
+    libdl.so
+    libexif.so
+    libexif_shim.so
+    libft2.so
+    libgui.so
+    libgui_shim.so
+    libhardware.so
+    libjpeg.so
+    libk3jpeg.so
+    libm.so
+    libskia.so
+    libstdc++.so
+    libutils.so
+
+All symbols found!
+```
+Now we see that everything is fine.
