@@ -461,18 +461,18 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 
     if (fd < 0) {
 	ret = errno;
-	printf("%s: " RED "%s" RESET "\n", libname, strerror(ret));
+	printf("%s%s: " RED "%s" RESET "\n", g_padding, libname, strerror(ret));
 	goto exit;
     }
 
     if (read(fd, ident, EI_NIDENT) != EI_NIDENT) {
 	ret = errno;
-	printf("%s: " RED "%s" RESET "\n", libname, strerror(ret));
+	printf("%s%s: " RED "%s" RESET "\n", g_padding, libname, strerror(ret));
 	goto exit_file;
     }
 
     if (strncmp(ident, ELFMAG, SELFMAG) != 0) {
-	printf("%s: " RED "Not ELF format" RESET "\n", libname);
+	printf("%s%s: " RED "Not ELF format" RESET "\n", g_padding, libname);
 	ret = EILSEQ;
 	goto exit_file;
     }
@@ -486,13 +486,13 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 	    break;
 	case ELFCLASSNONE:
 	default:
-	    printf("%s: " RED "Invalid ELF class" RESET "\n", libname);
+	    printf("%s%s: " RED "Invalid ELF class" RESET "\n", g_padding, libname);
 	    ret = EINVAL;
 	    goto exit_file;
     }
 
     if (ident[EI_DATA] == ELFDATANONE || ident[EI_DATA] == ELFDATA2MSB) {
-	printf("%s: " RED "not little endian data" RESET "\n", libname);
+	printf("%s%s: " RED "not little endian data" RESET "\n", g_padding, libname);
 	ret = EINVAL;
 	goto exit_file;
     }
@@ -500,41 +500,41 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 
     ret = read_header(fd, &elf_header);
     if (ret < 0) {
-	printf("%s: " RED "Error occured while reading ELF header: %s" RESET "\n", libname, strerror(-ret));
+	printf("%s%s: " RED "Error occured while reading ELF header: %s" RESET "\n", g_padding, libname, strerror(-ret));
 	goto exit_file;
     }
 
     section_table = read_section_table(fd, &elf_header);
     if (section_table == NULL) {
-	printf("%s: " RED "Error occured while reading section table" RESET "\n", libname);
+	printf("%s%s: " RED "Error occured while reading section table" RESET "\n", g_padding, libname);
 	ret = EFAULT;
 	goto exit_file;
     }
 
     dynamic = section_by_type(&elf_header, SHT_DYNAMIC, section_table);
     if (dynamic == NULL) {
-	printf("%s: " RED "Error occured while reading .dynamic section header" RESET "\n", libname);
+	printf("%s%s: " RED "Error occured while reading .dynamic section header" RESET "\n", g_padding, libname);
 	ret = EFAULT;
 	goto exit_section;
     }
 
     dynamic_table = read_dynamic_table(fd, dynamic);
     if (dynamic_table == NULL) {
-	printf("%s " RED "Error occured while reading table for section .dynamic" RESET "\n", libname);
+	printf("%s%s " RED "Error occured while reading table for section .dynamic" RESET "\n", g_padding, libname);
 	ret = EFAULT;
 	goto exit_section;
     }
 
     dynsym = section_by_type(&elf_header, SHT_DYNSYM, section_table);
     if (dynsym == NULL) {
-	printf("%s: " RED "Error occured while reading .dynsym section header" RESET "\n", libname);
+	printf("%s%s: " RED "Error occured while reading .dynsym section header" RESET "\n", g_padding, libname);
 	ret = EFAULT;
 	goto exit_dynamic;
     }
 
     symbol_table = read_symbol_table(fd, dynsym);
     if (symbol_table == NULL) {
-	printf("%s: " RED "Error occured while reading table for section .dynsym" RESET "\n", libname);
+	printf("%s%s: " RED "Error occured while reading table for section .dynsym" RESET "\n", g_padding, libname);
 	ret = EFAULT;
 	goto exit_dynamic;
     }
@@ -544,14 +544,14 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
     else
 	dynstr = section_by_index(&elf_header, dynsym->Shdr64.sh_link, section_table);
     if (dynstr == NULL) {
-	printf("%s: " RED "Error occured while reading table for section .dynsym" RESET "\n", libname);
+	printf("%s%s: " RED "Error occured while reading table for section .dynsym" RESET "\n", g_padding, libname);
 	ret = EFAULT;
 	goto exit_dynamic;
     }
 
     string_table = read_string_table(fd, dynstr);
     if (string_table == NULL) {
-	printf("%s: " RED "Error occured while reading table for section .strtab" RESET "\n", libname);
+	printf("%s%s: " RED "Error occured while reading table for section .strtab" RESET "\n", g_padding, libname);
 	ret = EFAULT;
 	goto exit_symbol;
     }
@@ -858,7 +858,7 @@ int main(int argc, char **argv) {
 
     /* Assume the last parameter is target lib name */
     if (access(argv[argc - 1], R_OK) < 0) {
-	printf("%s: " RED "%s\n", argv[argc - 1], strerror(errno));
+	printf("%s: " RED "%s" RESET "\n", argv[argc - 1], strerror(errno));
 	return errno;
     }
 
@@ -916,13 +916,21 @@ int main(int argc, char **argv) {
     while (sym_val != NULL) {
 	if (!sym_val->found) {
 	    unsigned char *libname = get_lib_by_id(sym_val->lib_id);
-	    printf("%s -> " RED "%s" RESET "\n", libname, sym_val->symbol);
+	    if (g_depth > 1 || g_full)
+		printf("%s -> " RED "%s" RESET "\n", libname, sym_val->symbol);
+	    else
+		printf(RED "%s" RESET "\n", sym_val->symbol);
+
 	    if (g_demangle) {
 		unsigned char *demangled = bfd_demangle(0, sym_val->symbol, 0x101);
 		if (demangled != NULL) {
-		    memset(g_padding, ' ', strlen(libname) + 4);
-		    g_padding[strlen(libname) + 4] = '\0';
-		    printf("%s%s\n", g_padding, demangled);
+		    if (g_depth > 1 || g_full) {
+			memset(g_padding, ' ', strlen(libname) + 4);
+			g_padding[strlen(libname) + 4] = '\0';
+			printf("%s%s\n", g_padding, demangled);
+		    }
+		    else
+			printf("%s\n", demangled);
 		}
 	    }
 	}
