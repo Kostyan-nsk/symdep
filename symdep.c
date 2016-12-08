@@ -418,6 +418,7 @@ static int open_lib(const unsigned char *libname) {
 	}
     }
 
+    errno = ENOENT;
     return -1;
 }
 
