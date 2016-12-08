@@ -867,16 +867,28 @@ int main(int argc, char **argv) {
     realpath(argv[argc - 1], full_path);
     strcpy(name, basename(dirname(full_path)));
     strcpy(parent_path, dirname(full_path));
-    /* Assume target lib is in
+
+    /* Assume target ELF object is in
+     *     system/vendor/bin
+     *     system/vendor/sbin
+     *     system/vendor/xbin
      *     system/vendor/lib
      *     system/vendor/lib64
+     *     system/vendor/lib/hw
+     *     system/vendor/lib64/hw
      *     system/lib
      *     system/lib64
+     *     system/lib/hw
+     *     system/lib64/hw
      * directories
      */
-    if (!strcmp(name, "lib") || !strcmp(name, "lib64") || !strcmp(name, "bin")
-	|| !strcmp(name, "xbin") || !strcmp(name, "sbin"))
-    {
+    // In case if we are in "lib*/hw" directory
+    if((!strcmp(basename(parent_path), "lib") || !strcmp(basename(parent_path), "lib64"))
+	&& !strcmp(name, "hw"))
+	    strcpy(parent_path, dirname(parent_path));
+    if (!strcmp(name, "lib") || !strcmp(name, "lib64") || !strcmp(name, "hw")
+	|| !strcmp(name, "bin") || !strcmp(name, "sbin") || !strcmp(name, "xbin")) {
+
 	    /* In case if we are in system/vendor/lib* directory */
 	    if( !strcmp(basename(parent_path), "vendor"))
 		strcpy(parent_path, dirname(parent_path));
