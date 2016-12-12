@@ -713,6 +713,23 @@ static int strpos(const char *str, const char *substr) {
 	return ret - str;
 }
 
+static unsigned char* str_replace(unsigned char *str, const unsigned char *substr,
+						const unsigned char *replace)
+{
+    static unsigned char buf[PATH_MAX];
+    size_t len;
+    int pos;
+
+    pos = strpos(str, substr);
+    if (pos < 0 || (strlen(str) - strlen(substr) + strlen(replace)) >= PATH_MAX)
+	return str;
+
+    len = strlen(substr);
+    strncpy(buf, str, pos);
+    sprintf(buf + pos, "%s%s", replace, str + pos + len);
+    return buf;
+}
+
 static unsigned char* get_lib_by_id(uint16_t lib_id) {
 
     uint16_t k = 0;
@@ -754,13 +771,15 @@ int main(int argc, char **argv) {
 
     int i, id, ret;
     uint8_t g_demangle = 0, all_found = 1;
-    unsigned char full_path[PATH_MAX], name[NAME_MAX], parent_path[PATH_MAX];
+    unsigned char *home, *full_path, name[NAME_MAX], parent_path[PATH_MAX];
     struct sym_list *sym_val;
 
     if (argc < 2) {
 	usage(*argv);
 	return EINVAL;
     }
+
+    home = getenv("HOME");
 
     /* Parsing arguments */
     for (i = 1; i < argc; i++) {
@@ -812,10 +831,11 @@ int main(int argc, char **argv) {
 	    else {
 		char *p = strtok(argv[i + 1], ":");
 		while (p != NULL) {
-		    if (realpath(p, full_path) == NULL)
+		    if ((full_path = realpath(str_replace(p, "~", home), NULL)) == NULL)
 			printf("Warning: \"%s\": %s\n", p, strerror(errno));
 		    else {
 			add_dir(full_path, "");
+			free(full_path);
 			g_cust_path++;
 		    }
 		    p = strtok(NULL, ":");
@@ -858,15 +878,16 @@ int main(int argc, char **argv) {
 	g_verbose = 0;
 
     /* Assume the last parameter is target lib name */
-    if (access(argv[argc - 1], R_OK) < 0) {
+    full_path = realpath(str_replace(argv[argc - 1], "~", home), NULL);
+    if (access(full_path, R_OK) < 0) {
 	printf("%s: " RED "%s" RESET "\n", argv[argc - 1], strerror(errno));
 	return errno;
     }
 
     /* Parsing paths */
-    realpath(argv[argc - 1], full_path);
     strcpy(name, basename(dirname(full_path)));
     strcpy(parent_path, dirname(full_path));
+    free(full_path);
 
     /* Assume target ELF object is in
      *     system/vendor/bin
@@ -906,8 +927,10 @@ int main(int argc, char **argv) {
     if (id < 0)
 	return errno;
 
+    full_path = realpath(str_replace(argv[argc - 1], "~", home), NULL);
     /* And here we go in */
-    ret = process_lib(argv[argc - 1], id, 0);
+    ret = process_lib(full_path, id, 0);
+    free(full_path);
 
     /* Check if all symbols were found */
     sym_val = g_symlist;
