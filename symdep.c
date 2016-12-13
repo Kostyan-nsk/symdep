@@ -478,19 +478,30 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 	goto exit_file;
     }
 
-    switch (ident[EI_CLASS]) {
-	case ELFCLASS32:
-	    g_elf_class = 32;
-	    break;
-	case ELFCLASS64:
-	    g_elf_class = 64;
-	    break;
-	case ELFCLASSNONE:
-	default:
-	    printf("%s%s: " RED "Invalid ELF class" RESET "\n", g_padding, libname);
+    if (id == 0)
+	switch (ident[EI_CLASS]) {
+	    case ELFCLASS32:
+		g_elf_class = 32;
+		break;
+	    case ELFCLASS64:
+		g_elf_class = 64;
+		break;
+	    case ELFCLASSNONE:
+	    default:
+		printf("%s%s: " RED "Invalid ELF class" RESET "\n", g_padding, libname);
+		ret = EINVAL;
+		goto exit_file;
+	}
+    else
+	if (ident[EI_CLASS] != g_elf_class) {
+	    if (g_elf_class == 32)
+		printf("%s%s: " RED "Not ELF32 class" RESET "\n", g_padding, libname);
+	    else
+		printf("%s%s: " RED "Not ELF64 class" RESET "\n", g_padding, libname);
+
 	    ret = EINVAL;
 	    goto exit_file;
-    }
+	}
 
     if (ident[EI_DATA] == ELFDATANONE || ident[EI_DATA] == ELFDATA2MSB) {
 	printf("%s%s: " RED "not little endian data" RESET "\n", g_padding, libname);
