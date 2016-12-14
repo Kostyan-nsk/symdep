@@ -410,7 +410,7 @@ static int open_lib(const unsigned char *libname) {
 	 * and appropriate to our ELF class directories
 	 */
 	if (i < g_cust_path || (!strcmp(path, "lib") && g_elf_class == ELFCLASS32)
-	    || (!strcmp(path, "lib64") && g_elf_class == 64))
+	    || (!strcmp(path, "lib64") && g_elf_class == ELFCLASS64))
 	{
 		sprintf(full_path, "%s/%s", g_paths[i], libname);
 		if (!access(full_path, R_OK))
