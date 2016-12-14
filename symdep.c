@@ -91,7 +91,7 @@ static int read_header(int fd, struct Elf_Ehdr *elf_header) {
     if (lseek(fd, 0, SEEK_SET) < 0)
 	return -errno;
 
-    if (g_elf_class == 32) {
+    if (g_elf_class == ELFCLASS32) {
 	size = sizeof(Elf32_Ehdr);
 	ret = read(fd, &elf_header->Ehdr32, size);
     }
@@ -114,7 +114,7 @@ static struct Elf_Shdr* read_section_table(int fd, const struct Elf_Ehdr *elf_he
     int ret;
     struct Elf_Shdr *section_table;
 
-    if (g_elf_class == 32) {
+    if (g_elf_class == ELFCLASS32) {
 	offset = elf_header->Ehdr32.e_shoff;
 	num = elf_header->Ehdr32.e_shnum;
     }
@@ -131,7 +131,7 @@ static struct Elf_Shdr* read_section_table(int fd, const struct Elf_Ehdr *elf_he
 	goto error;
 
     for (i = 0; i < num; i++) {
-	if (g_elf_class == 32) {
+	if (g_elf_class == ELFCLASS32) {
 	    size = sizeof(Elf32_Shdr);
 	    ret = read(fd, &section_table[i].Shdr32, size);
 	}
@@ -159,7 +159,7 @@ static struct Elf_Dyn* read_dynamic_table(int fd, const struct Elf_Shdr *section
     if (section == NULL)
 	return NULL;
 
-    if (g_elf_class == 32) {
+    if (g_elf_class == ELFCLASS32) {
 	size = sizeof(Elf32_Dyn);
 	n = section->Shdr32.sh_size / size;
 	offset = section->Shdr32.sh_offset;
@@ -178,7 +178,7 @@ static struct Elf_Dyn* read_dynamic_table(int fd, const struct Elf_Shdr *section
 	goto error;
 
     for (i = 0; i < n; i++)
-	if (g_elf_class == 32) {
+	if (g_elf_class == ELFCLASS32) {
 	    if (read(fd, &dynamic_table[i].Dyn32, size) != size)
 		goto error;
 	}
@@ -203,7 +203,7 @@ static struct Elf_Sym* read_symbol_table(int fd, const struct Elf_Shdr *section)
     if (section == NULL)
 	return NULL;
 
-    if (g_elf_class == 32) {
+    if (g_elf_class == ELFCLASS32) {
 	size = sizeof(Elf32_Sym);
 	n = section->Shdr32.sh_size / size;
 	offset = section->Shdr32.sh_offset;
@@ -222,7 +222,7 @@ static struct Elf_Sym* read_symbol_table(int fd, const struct Elf_Shdr *section)
 	goto error;
 
     for (i = 0; i < n; i++)
-	if (g_elf_class == 32) {
+	if (g_elf_class == ELFCLASS32) {
 	    if (read(fd, &symbol_table[i].Sym32, size) != size)
 		goto error;
 	}
@@ -247,7 +247,7 @@ static unsigned char* read_string_table(int fd, const struct Elf_Shdr *section) 
     if (section == NULL)
         return NULL;
 
-    if (g_elf_class == 32) {
+    if (g_elf_class == ELFCLASS32) {
 	size = section->Shdr32.sh_size;
 	offset = section->Shdr32.sh_offset;
     }
@@ -282,7 +282,7 @@ static inline struct Elf_Shdr* section_by_type(const struct Elf_Ehdr *elf_header
     if (section_table == NULL)
 	return NULL;
 
-    if (g_elf_class == 32) {
+    if (g_elf_class == ELFCLASS32) {
 	num = elf_header->Ehdr32.e_shnum;
 
 	for (i = 0; i < num; i++) {
@@ -310,7 +310,7 @@ static inline struct Elf_Shdr* section_by_index(const struct Elf_Ehdr *elf_heade
     if (section_table == NULL)
 	return NULL;
 
-    if (g_elf_class == 32)
+    if (g_elf_class == ELFCLASS32)
 	num = elf_header->Ehdr32.e_shnum;
     else
 	num = elf_header->Ehdr64.e_shnum;
@@ -409,7 +409,7 @@ static int open_lib(const unsigned char *libname) {
 	/* Look for lib in provided custom directories
 	 * and appropriate to our ELF class directories
 	 */
-	if (i < g_cust_path || (!strcmp(path, "lib") && g_elf_class == 32)
+	if (i < g_cust_path || (!strcmp(path, "lib") && g_elf_class == ELFCLASS32)
 	    || (!strcmp(path, "lib64") && g_elf_class == 64))
 	{
 		sprintf(full_path, "%s/%s", g_paths[i], libname);
@@ -478,23 +478,17 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 	goto exit_file;
     }
 
-    if (id == 0)
-	switch (ident[EI_CLASS]) {
-	    case ELFCLASS32:
-		g_elf_class = 32;
-		break;
-	    case ELFCLASS64:
-		g_elf_class = 64;
-		break;
-	    case ELFCLASSNONE:
-	    default:
-		printf("%s%s: " RED "Invalid ELF class" RESET "\n", g_padding, libname);
-		ret = EINVAL;
-		goto exit_file;
+    if (id == 0) {
+	g_elf_class = ident[EI_CLASS];
+	if (g_elf_class != ELFCLASS32 && g_elf_class != ELFCLASS64) {
+	    printf("%s%s: " RED "Invalid ELF class" RESET "\n", g_padding, libname);
+	    ret = EINVAL;
+	    goto exit_file;
 	}
+    }
     else
 	if (ident[EI_CLASS] != g_elf_class) {
-	    if (g_elf_class == 32)
+	    if (g_elf_class == ELFCLASS32)
 		printf("%s%s: " RED "Not ELF32 class" RESET "\n", g_padding, libname);
 	    else
 		printf("%s%s: " RED "Not ELF64 class" RESET "\n", g_padding, libname);
@@ -551,7 +545,7 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 	goto exit_dynamic;
     }
 
-    if (g_elf_class == 32)
+    if (g_elf_class == ELFCLASS32)
 	dynstr = section_by_index(&elf_header, dynsym->Shdr32.sh_link, section_table);
     else
 	dynstr = section_by_index(&elf_header, dynsym->Shdr64.sh_link, section_table);
@@ -573,7 +567,7 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 
     /* Fill in list of required symbols */
     if (g_cur_depth <= g_depth || g_full) {
-	if (g_elf_class == 32) {
+	if (g_elf_class == ELFCLASS32) {
 	    n = dynsym->Shdr32.sh_size / sizeof(Elf32_Sym);
 	    for (i = 0; i < n; i++) {
 		if (symbol_table[i].Sym32.st_shndx == SHN_UNDEF
@@ -601,7 +595,7 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 
     /* Look for required symbols */
     if (id != 0) {
-	if (g_elf_class == 32) {
+	if (g_elf_class == ELFCLASS32) {
 	    n = dynsym->Shdr32.sh_size / sizeof(Elf32_Sym);
 	    for (i = 0; i < n; i++) {
 		if (symbol_table[i].Sym32.st_shndx != SHN_UNDEF) {
@@ -668,7 +662,7 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
      * and process required libs
      */
     if (g_cur_depth <= g_depth || g_full) {
-	if (g_elf_class == 32) {
+	if (g_elf_class == ELFCLASS32) {
 	    n = dynamic->Shdr32.sh_size / sizeof(Elf32_Dyn);
 	    for (i = 0; i < n; i++) {
 		if (dynamic_table[i].Dyn32.d_tag == DT_NULL)
