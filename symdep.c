@@ -474,16 +474,19 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 
     if (strncmp(ident, ELFMAG, SELFMAG) != 0) {
 	printf("%s%s: " RED "Not ELF format" RESET "\n", g_padding, libname);
-	ret = EILSEQ;
-	goto exit_file;
+	if (id == 0)
+	    exit(EXIT_FAILURE);
+	else {
+	    ret = EILSEQ;
+	    goto exit_file;
+	}
     }
 
     if (id == 0) {
 	g_elf_class = ident[EI_CLASS];
 	if (g_elf_class != ELFCLASS32 && g_elf_class != ELFCLASS64) {
 	    printf("%s%s: " RED "Invalid ELF class" RESET "\n", g_padding, libname);
-	    ret = EINVAL;
-	    goto exit_file;
+	    exit(EXIT_FAILURE);
 	}
     }
     else
@@ -519,9 +522,16 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 
     dynamic = section_by_type(&elf_header, SHT_DYNAMIC, section_table);
     if (dynamic == NULL) {
-	printf("%s%s: " RED "Error occured while reading .dynamic section header" RESET "\n", g_padding, libname);
-	ret = EFAULT;
-	goto exit_section;
+	if (id == 0 && ((g_elf_class == ELFCLASS32 && elf_header.Ehdr32.e_type != ET_DYN)
+		     || (g_elf_class == ELFCLASS64 && elf_header.Ehdr64.e_type != ET_DYN))) {
+	printf("%s: " GREEN "Statically linked" RESET "\n", libname);
+	exit(EXIT_SUCCESS);
+    }
+	else {
+	    printf("%s%s: " RED "Error occured while reading .dynamic section header" RESET "\n", g_padding, libname);
+	    ret = EFAULT;
+	    goto exit_section;
+	}
     }
 
     dynamic_table = read_dynamic_table(fd, dynamic);
