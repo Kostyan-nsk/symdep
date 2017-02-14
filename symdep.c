@@ -123,12 +123,12 @@ static struct Elf_Shdr* read_section_table(int fd, const struct Elf_Ehdr *elf_he
 	num = elf_header->Ehdr64.e_shnum;
     }
 
+    if (lseek(fd, offset, SEEK_SET) < 0)
+	return NULL;
+
     section_table = (struct Elf_Shdr *)malloc(sizeof(struct Elf_Shdr) * num);
     if (section_table == NULL)
 	return NULL;
-
-    if (lseek(fd, offset, SEEK_SET) < 0)
-	goto error;
 
     for (i = 0; i < num; i++) {
 	if (g_elf_class == ELFCLASS32) {
@@ -170,12 +170,12 @@ static struct Elf_Dyn* read_dynamic_table(int fd, const struct Elf_Shdr *section
 	offset = section->Shdr64.sh_offset;
     }
 
+    if (lseek(fd, offset, SEEK_SET) < 0)
+	return NULL;
+
     dynamic_table = (struct Elf_Dyn *)malloc(sizeof(struct Elf_Dyn) * n);
     if (dynamic_table == NULL)
 	return NULL;
-
-    if (lseek(fd, offset, SEEK_SET) < 0)
-	goto error;
 
     for (i = 0; i < n; i++)
 	if (g_elf_class == ELFCLASS32) {
@@ -214,12 +214,13 @@ static struct Elf_Sym* read_symbol_table(int fd, const struct Elf_Shdr *section)
 	offset = section->Shdr64.sh_offset;
     }
 
+    if (lseek(fd, offset, SEEK_SET) < 0)
+	return NULL;
+
     symbol_table = (struct Elf_Sym *)malloc(sizeof(struct Elf_Sym) * n);
     if (symbol_table == NULL)
 	return NULL;
 
-    if (lseek(fd, offset, SEEK_SET) < 0)
-	goto error;
 
     for (i = 0; i < n; i++)
 	if (g_elf_class == ELFCLASS32) {
@@ -256,12 +257,12 @@ static unsigned char* read_string_table(int fd, const struct Elf_Shdr *section) 
 	offset = section->Shdr64.sh_offset;
     }
 
+    if (lseek(fd, offset, SEEK_SET) < 0)
+	return NULL;
+
     string_table = (unsigned char *)malloc(size);
     if (string_table == NULL)
 	return NULL;
-
-    if (lseek(fd, offset, SEEK_SET) < 0)
-	goto error;
 
     if (read(fd, string_table, size) != size)
 	goto error;
