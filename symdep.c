@@ -501,7 +501,7 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 	    goto exit_file;
 	}
 
-    if (ident[EI_DATA] == ELFDATANONE || ident[EI_DATA] == ELFDATA2MSB) {
+    if (ident[EI_DATA] != ELFDATA2LSB) {
 	printf("%s%s: " RED "not little endian data" RESET "\n", g_padding, libname);
 	ret = EINVAL;
 	goto exit_file;
@@ -679,8 +679,8 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 		if (dynamic_table[i].Dyn32.d_tag == DT_NULL)
 		    break;
 		if (dynamic_table[i].Dyn32.d_tag == DT_NEEDED) {
-		    int new_id;
-		    if (new_id = add_in_lib_list(&string_table[dynamic_table[i].Dyn32.d_un.d_ptr], id) > 0)
+		    int new_id = add_in_lib_list(&string_table[dynamic_table[i].Dyn32.d_un.d_ptr], id);
+		    if (new_id > 0)
 			ret = process_lib(&string_table[dynamic_table[i].Dyn32.d_un.d_ptr], new_id, id);
 		}
 	    }
@@ -691,8 +691,8 @@ static int process_lib(const unsigned char *libname, uint16_t id, uint16_t paren
 		if (dynamic_table[i].Dyn64.d_tag == DT_NULL)
 		    break;
 		if (dynamic_table[i].Dyn64.d_tag == DT_NEEDED) {
-		    int new_id;
-		    if (new_id = add_in_lib_list(&string_table[dynamic_table[i].Dyn64.d_un.d_ptr], id) > 0)
+		    int new_id = add_in_lib_list(&string_table[dynamic_table[i].Dyn64.d_un.d_ptr], id);
+		    if (new_id > 0)
 			ret = process_lib(&string_table[dynamic_table[i].Dyn64.d_un.d_ptr], new_id, id);
 		}
 	    }
